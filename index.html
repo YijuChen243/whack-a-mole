@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>瘋狂打地鼠 Super Whack-A-Mole</title>
+  <!-- Google Fonts: Outfit & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Custom Hammer Cursor (Desktop only, hidden on mobile) -->
+  <div id="custom-hammer" class="custom-hammer"></div>
+
+  <!-- Background Animated Particles Decor -->
+  <div class="bg-glow"></div>
+  <div class="bg-particles" id="bg-particles"></div>
+
+  <div class="game-container">
+    
+    <!-- ================= START SCREEN ================= -->
+    <div id="start-screen" class="screen active">
+      <div class="title-container">
+        <h1 class="game-title">
+          <span class="word-super">SUPER</span>
+          <span class="word-whack">打地鼠</span>
+        </h1>
+        <p class="game-subtitle">考驗你的極限反應與手速！</p>
+      </div>
+
+      <div class="glass-panel main-menu">
+        <div class="section-title">選擇遊戲難度</div>
+        <div class="difficulty-selector">
+          <button class="btn btn-diff easy" data-difficulty="easy">
+            <span class="diff-emoji">🌱</span>
+            <span class="diff-text">簡單 (Easy)</span>
+          </button>
+          <button class="btn btn-diff medium active" data-difficulty="medium">
+            <span class="diff-emoji">🐹</span>
+            <span class="diff-text">中等 (Medium)</span>
+          </button>
+          <button class="btn btn-diff hard" data-difficulty="hard">
+            <span class="diff-emoji">🔥</span>
+            <span class="diff-text">困難 (Hard)</span>
+          </button>
+          <button class="btn btn-diff insane" data-difficulty="insane">
+            <span class="diff-emoji">💀</span>
+            <span class="diff-text">地獄 (Insane)</span>
+          </button>
+        </div>
+
+        <div class="sound-pre-toggle">
+          <label class="switch-label">
+            <span>背景音樂 & 音效</span>
+            <button class="btn-icon" id="start-sound-toggle" title="切換靜音">
+              <svg class="icon-svg" id="sound-icon-start" viewBox="0 0 24 24">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            </button>
+          </label>
+        </div>
+
+        <button class="btn btn-primary pulse" id="btn-start-game">
+          開始遊戲 START
+        </button>
+      </div>
+
+      <!-- High Scores Leaderboard Panel -->
+      <div class="glass-panel leaderboard-panel">
+        <div class="leaderboard-header">
+          <svg class="trophy-icon" viewBox="0 0 24 24">
+            <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v3c0 2.44 1.72 4.48 4 4.88v2.62c0 2.21 1.79 4 4 4h2c2.21 0 4-1.79 4-4v-2.62c2.28-.4 4-2.44 4-4.88V7c0-1.1-.9-2-2-2zM5 10V7h2v3c0 1.66-1.34 3-3 3zm14 0c-1.66 0-3-1.34-3-3V7h2v3zm-4 4v1c0 1.1-.9 2-2 2h-2c-1.1 0-2-.9-2-2v-1H7.21c.29-.62.49-1.29.59-2h8.39c.1.71.3 1.38.59 2H15z" />
+          </svg>
+          <h3>榮譽排行榜</h3>
+        </div>
+        <div class="leaderboard-tabs">
+          <span class="tab active" data-tab="easy">簡單</span>
+          <span class="tab" data-tab="medium">中等</span>
+          <span class="tab" data-tab="hard">困難</span>
+          <span class="tab" data-tab="insane">地獄</span>
+        </div>
+        <ol class="leaderboard-list" id="leaderboard-list">
+          <!-- Dynamically populated via JS -->
+        </ol>
+      </div>
+
+      <!-- Game Rules Panel -->
+      <div class="glass-panel rules-panel">
+        <h4>🎮 遊戲規則</h4>
+        <ul>
+          <li>🟫 <strong>一般地鼠 (+10 分)</strong>: 一般速度出沒，最基本的目標。</li>
+          <li>👑 <strong>黃金地鼠 (+30 分)</strong>: 出現時間極短，擊中獲得高分。</li>
+          <li>💣 <strong>炸彈地鼠 (-20 分 & 扣生命值)</strong>: 絕對不能打！打中會扣除分數與 1 顆心。</li>
+          <li>⏱ 遊戲時間 30 秒，或是生命值扣完（共 3 顆心）時遊戲結束。</li>
+        </ul>
+      </div>
+    </div>
+
+
+    <!-- ================= GAMEPLAY SCREEN ================= -->
+    <div id="game-screen" class="screen">
+      
+      <!-- Top HUD Control Bar -->
+      <div class="hud-bar">
+        <div class="hud-item flex-col">
+          <span class="hud-label">得分 SCORE</span>
+          <span class="hud-value score-val" id="score-display">0000</span>
+        </div>
+
+        <div class="hud-item flex-col">
+          <span class="hud-label">生命值 LIVES</span>
+          <div class="hearts-container" id="hearts-container">
+            <span class="heart">❤️</span>
+            <span class="heart">❤️</span>
+            <span class="heart">❤️</span>
+          </div>
+        </div>
+
+        <div class="hud-item flex-col">
+          <span class="hud-label">賸餘時間 TIME</span>
+          <div class="time-container">
+            <span class="hud-value timer-val" id="timer-display">30.0s</span>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="timer-bar"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-controls">
+          <button class="btn-icon" id="game-sound-toggle" title="切換靜音">
+            <svg class="icon-svg" id="sound-icon-game" viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+          </button>
+          <button class="btn-icon" id="btn-pause" title="暫停遊戲">
+            <svg class="icon-svg" viewBox="0 0 24 24" id="pause-icon">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-quit">放棄</button>
+        </div>
+      </div>
+
+      <div class="hud-difficulty-tag" id="hud-diff-tag">難度: 中等</div>
+
+      <!-- Combo Indicator -->
+      <div class="combo-container" id="combo-container">
+        <span class="combo-text">COMBO</span>
+        <span class="combo-count" id="combo-count">0</span>
+      </div>
+
+      <!-- 3D Board and Grid -->
+      <div class="board-3d-wrapper">
+        <div class="board-grid">
+          <!-- Hole 1 -->
+          <div class="hole-wrapper" data-hole="0">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 2 -->
+          <div class="hole-wrapper" data-hole="1">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 3 -->
+          <div class="hole-wrapper" data-hole="2">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 4 -->
+          <div class="hole-wrapper" data-hole="3">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 5 -->
+          <div class="hole-wrapper" data-hole="4">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 6 -->
+          <div class="hole-wrapper" data-hole="5">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 7 -->
+          <div class="hole-wrapper" data-hole="6">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 8 -->
+          <div class="hole-wrapper" data-hole="7">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+          <!-- Hole 9 -->
+          <div class="hole-wrapper" data-hole="8">
+            <div class="hole">
+              <div class="hole-shadow"></div>
+              <div class="mole normal">
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                  <div class="mole-whiskers"></div>
+                </div>
+              </div>
+              <div class="mole golden">
+                <div class="mole-crown">👑</div>
+                <div class="mole-body">
+                  <div class="mole-eyes"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="mole-cheeks"></div>
+                </div>
+              </div>
+              <div class="mole bomb">
+                <div class="bomb-fuse-spark"></div>
+                <div class="mole-body">
+                  <div class="mole-eyes angry"><div class="eye"></div><div class="eye"></div></div>
+                  <div class="mole-nose"></div>
+                  <div class="bomb-symbol">💣</div>
+                </div>
+              </div>
+            </div>
+            <div class="hole-front"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ================= GAME OVER MODAL ================= -->
+    <div id="game-over-modal" class="modal-overlay">
+      <div class="glass-panel modal-content scale-in">
+        <h2 class="modal-title">遊戲結束</h2>
+        <p class="modal-subtitle" id="game-over-reason">時間到！你的最終得分為：</p>
+        
+        <div class="final-score-container">
+          <span class="final-score-val" id="final-score-display">0</span>
+          <span class="new-record-badge" id="new-record-badge">新紀錄 !</span>
+        </div>
+
+        <div class="record-input-section" id="record-input-section">
+          <p>恭喜你進入排行榜！請輸入你的名字：</p>
+          <div class="input-group">
+            <input type="text" id="player-name-input" maxlength="10" placeholder="你的大名..." value="玩家1">
+            <button class="btn btn-primary" id="btn-save-score">儲存分數</button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="btn-restart">再玩一次</button>
+          <button class="btn btn-secondary" id="btn-main-menu">返回主選單</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PAUSE MODAL ================= -->
+    <div id="pause-modal" class="modal-overlay">
+      <div class="glass-panel modal-content">
+        <h2 class="modal-title">遊戲暫停</h2>
+        <p class="modal-subtitle">深呼吸，調整一下節奏吧！</p>
+        
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="btn-resume">繼續遊戲</button>
+          <button class="btn btn-secondary" id="btn-pause-menu">返回主選單</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
