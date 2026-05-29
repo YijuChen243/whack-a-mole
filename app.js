@@ -265,6 +265,25 @@ const soundSynth = new SoundSynth();
 /* ==========================================================================
    GAME ENGINE & STATE MANAGEMENT
    ========================================================================== */
+const DreamloKeys = {
+  easy: {
+    public: '6a1960908f40bb17b01bdceb',
+    private: '_SAGYIP6LUWXMqKo1x0b2AHZITc48QgEWx0ARqrmuTCA'
+  },
+  medium: {
+    public: '6a1960938f40bb17b01bdcf9',
+    private: '9bodCJZwQkySKwY8IcKf8wfKjvmHbuhEGgn3Dsc1406A'
+  },
+  hard: {
+    public: '6a1960968f40bb17b01bdd00',
+    private: 'dhSQGEtPyEWiU0ILyqaHtQVbIQjz04MUaRoZGrFgWcpA'
+  },
+  insane: {
+    public: '6a1960998f40bb17b01bdd09',
+    private: 'jArKXMvqAkeooV0afLqe8ATv_gTRpYB0mx7VNcXsci1A'
+  }
+};
+
 const GameConfig = {
   easy: {
     name: '簡單',
@@ -319,6 +338,10 @@ class WhackAMole {
     this.gameActive = false;
     this.isPaused = false;
     
+    // Leaderboard state
+    this.leaderboardMode = 'local'; // 'local' or 'online'
+    this.activeLeaderboardDifficulty = 'medium';
+    
     // Core Timers
     this.gameTimerInterval = null;
     this.spawnTimerTimeout = null;
@@ -371,6 +394,7 @@ class WhackAMole {
       leaderboardList: document.getElementById('leaderboard-list'),
       leaderboardTabs: document.querySelectorAll('.leaderboard-panel .tab'),
       difficultyButtons: document.querySelectorAll('.difficulty-selector .btn-diff'),
+      modeButtons: document.querySelectorAll('.mode-btn'),
       
       gameOverReason: document.getElementById('game-over-reason'),
       finalScoreDisplay: document.getElementById('final-score-display'),
@@ -401,6 +425,17 @@ class WhackAMole {
         this.dom.leaderboardTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         this.renderLeaderboard(tab.dataset.tab);
+        soundSynth.playHitSound();
+      });
+    });
+
+    // 2b. Leaderboard Mode Switch (Local / Online)
+    this.dom.modeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.dom.modeButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.leaderboardMode = btn.dataset.mode;
+        this.renderLeaderboard(this.activeLeaderboardDifficulty);
         soundSynth.playHitSound();
       });
     });
@@ -1047,8 +1082,72 @@ class WhackAMole {
   }
 
   renderLeaderboard(difficulty) {
+    this.activeLeaderboardDifficulty = difficulty;
     this.dom.leaderboardList.innerHTML = '';
-    const records = this.highScores[difficulty] || [];
+    
+    if (this.leaderboardMode === 'local') {
+      const records = this.highScores[difficulty] || [];
+      this.populateLeaderboardUI(records);
+    } else {
+      // Show loading indicator
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'leaderboard-empty';
+      loadingDiv.textContent = '線上排行讀取中...';
+      this.dom.leaderboardList.appendChild(loadingDiv);
+      
+      const publicKey = DreamloKeys[difficulty].public;
+      fetch(`https://www.dreamlo.com/lb/${publicKey}/json`)
+        .then(response => {
+          if (!response.ok) throw new Error('Network response not ok');
+          return response.json();
+        })
+        .then(data => {
+          // Double check difficulty hasn't switched during network call
+          if (this.activeLeaderboardDifficulty !== difficulty || this.leaderboardMode !== 'online') return;
+          
+          this.dom.leaderboardList.innerHTML = '';
+          let entries = [];
+          const lb = data.dreamlo.leaderboard;
+          if (lb && lb.entry) {
+            if (Array.isArray(lb.entry)) {
+              entries = lb.entry;
+            } else {
+              entries = [lb.entry];
+            }
+          }
+          
+          // Map scores to high score structure (names are decoded for Chinese character support)
+          const records = entries.map(item => ({
+            name: decodeURIComponent(item.name).replace(/\+/g, ' '),
+            score: parseInt(item.score, 10)
+          }));
+          
+          // Render top 5
+          this.populateLeaderboardUI(records.slice(0, 5));
+        })
+        .catch(err => {
+          console.error('Failed to load Dreamlo leaderboard:', err);
+          if (this.activeLeaderboardDifficulty !== difficulty || this.leaderboardMode !== 'online') return;
+          
+          this.dom.leaderboardList.innerHTML = '';
+          const errDiv = document.createElement('div');
+          errDiv.className = 'leaderboard-empty';
+          errDiv.textContent = '連線失敗，自動載入本機排行';
+          this.dom.leaderboardList.appendChild(errDiv);
+          
+          // Fallback to local leaderboard after a brief delay
+          setTimeout(() => {
+            if (this.leaderboardMode === 'online' && this.activeLeaderboardDifficulty === difficulty) {
+              const records = this.highScores[difficulty] || [];
+              this.populateLeaderboardUI(records);
+            }
+          }, 1500);
+        });
+    }
+  }
+
+  populateLeaderboardUI(records) {
+    this.dom.leaderboardList.innerHTML = '';
     
     if (records.length === 0) {
       const li = document.createElement('div');
@@ -1095,6 +1194,25 @@ class WhackAMole {
     this.highScores[this.currentDifficulty] = list.slice(0, 5);
     
     this.saveHighScoresToStorage();
+    
+    // Asynchronously submit score to Dreamlo online server
+    const privateKey = DreamloKeys[this.currentDifficulty].private;
+    // Filter special characters that dreamlo doesn't support (like asterisk)
+    const sanitizedName = name.replace(/\*/g, '');
+    const uploadUrl = `https://www.dreamlo.com/lb/${privateKey}/add/${encodeURIComponent(sanitizedName)}/${this.score}`;
+    
+    fetch(uploadUrl)
+      .then(response => {
+        console.log('Score uploaded to Dreamlo successfully');
+        // If still viewing online mode, refresh leaderboard to show updated online rank
+        if (this.leaderboardMode === 'online') {
+          this.renderLeaderboard(this.currentDifficulty);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to upload score to Dreamlo:', err);
+      });
+      
     this.renderLeaderboard(this.currentDifficulty);
     
     // Update active tab matching current difficulty
