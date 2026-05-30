@@ -1096,7 +1096,7 @@ class WhackAMole {
       this.dom.leaderboardList.appendChild(loadingDiv);
       
       const publicKey = DreamloKeys[difficulty].public;
-      fetch(`https://www.dreamlo.com/lb/${publicKey}/json`)
+      fetch(`https://api.codetabs.com/v1/proxy/?quest=http://dreamlo.com/lb/${publicKey}/json`)
         .then(response => {
           if (!response.ok) throw new Error('Network response not ok');
           return response.json();
@@ -1199,7 +1199,7 @@ class WhackAMole {
     const privateKey = DreamloKeys[this.currentDifficulty].private;
     // Filter special characters that dreamlo doesn't support (like asterisk)
     const sanitizedName = name.replace(/\*/g, '');
-    const uploadUrl = `https://www.dreamlo.com/lb/${privateKey}/add/${encodeURIComponent(sanitizedName)}/${this.score}`;
+    const uploadUrl = `https://api.codetabs.com/v1/proxy/?quest=http://dreamlo.com/lb/${privateKey}/add/${encodeURIComponent(sanitizedName)}/${this.score}`;
     
     fetch(uploadUrl)
       .then(response => {
